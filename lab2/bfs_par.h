@@ -54,7 +54,7 @@ parlay::sequence<size_t> scan_par(parlay::sequence<size_t> const& sequence, std:
 }
 
 template <typename ID, typename VERTEX>
-int bfs_calculate_distance_par(Vertex<ID, VERTEX>& start, ID finish_id) {
+int* bfs_calculate_distances_par(Vertex<ID, VERTEX>& start) {
     class BfsVertexDescriptor {
     public:
 
@@ -84,10 +84,16 @@ int bfs_calculate_distance_par(Vertex<ID, VERTEX>& start, ID finish_id) {
         bool is_empty_property;
     };
 
-    parlay::sequence<std::atomic<bool>> visited_vertices(start.calculate_graph_size());
+    size_t graph_size = start.calculate_graph_size();
+    int* result_distances = new int[graph_size];
+    parlay::sequence<std::atomic<bool>> visited_vertices(graph_size);
     parlay::sequence<BfsVertexDescriptor> frontiers(1, BfsVertexDescriptor(start.safe_cast(), false));
+    
+    size_t start_index_in_graph = start.calculate_index_in_graph();
+    result_distances[start_index_in_graph] = 0;
+    visited_vertices[start_index_in_graph] = true;
 
-    int current_distance = 0;
+    int current_distance = 1;
     while (!frontiers.empty()) {
         parlay::sequence<size_t> degree = map_par<BfsVertexDescriptor, size_t>(frontiers, [](BfsVertexDescriptor& descriptor) {
             if (descriptor.is_empty()) {
@@ -99,9 +105,7 @@ int bfs_calculate_distance_par(Vertex<ID, VERTEX>& start, ID finish_id) {
 
         parlay::sequence<size_t> scanned_degree = scan_par(degree, std::plus<size_t>());
         parlay::sequence<BfsVertexDescriptor> next_frontiers(scanned_degree.back(), BfsVertexDescriptor(start.safe_cast(), true));
-        
-        bool finish_found = false;
-        
+
         parlay::blocked_for(0, scanned_degree.back(), SEQ_SIZE, [&](size_t, size_t l, size_t r) {
             size_t frontier_l = std::upper_bound(scanned_degree.begin(), scanned_degree.end(), l) - scanned_degree.begin();
             for (size_t frontier_i = frontier_l; (frontier_i == 0 ? 0 : scanned_degree[frontier_i - 1]) < r; frontier_i++) {
@@ -115,12 +119,10 @@ int bfs_calculate_distance_par(Vertex<ID, VERTEX>& start, ID finish_id) {
                 for (size_t frontier_neighbor_i = frontier_neighbor_l; frontier_neighbor_i < frontier_neighbor_r; frontier_neighbor_i++) {
                     VERTEX neighbor = frontiers[frontier_i].get_vertex().get_neighbors()[frontier_neighbor_i];
                     bool expected = false;
-                    if (atomic_compare_exchange_strong(&visited_vertices[neighbor.calculate_index_in_graph()], &expected, true)) {
+                    size_t neighbor_index_in_graph = neighbor.calculate_index_in_graph();
+                    if (atomic_compare_exchange_strong(&visited_vertices[neighbor_index_in_graph], &expected, true)) {
                         next_frontiers[frontier_neighbor_i + degree_sum_before].set_vertex(neighbor);
-
-                        if (neighbor.get_id() == finish_id) {
-                            finish_found = true;
-                        }
+                        result_distances[neighbor_index_in_graph] = current_distance;
                     }
                 }
             }
@@ -128,12 +130,9 @@ int bfs_calculate_distance_par(Vertex<ID, VERTEX>& start, ID finish_id) {
 
         frontiers.swap(next_frontiers);
         current_distance++;
-        
-        if (finish_found) {
-            return current_distance;
-        }
+
     }
-    
-    return -1;
+
+    return result_distances;
 }
 

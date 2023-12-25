@@ -44,3 +44,31 @@ Average time for par is 36.8434 s
 par is 3.3755 times faster than seq
 ```
 
+### Results after seq optimization
+
+```
+Time for par is 39.8879 s
+Time for seq is 19.0402 s
+Distance is correct: 1 1
+Distance to {500, 500, 500} is 1500
+Time for par is 39.3967 s
+Time for seq is 18.7501 s
+Distance is correct: 1 1
+Distance to {500, 500, 500} is 1500
+Time for par is 39.6999 s
+Time for seq is 18.9220 s
+Distance is correct: 1 1
+Distance to {500, 500, 500} is 1500
+Time for par is 39.6378 s
+Time for seq is 18.8909 s
+Distance is correct: 1 1
+Distance to {500, 500, 500} is 1500
+Time for par is 39.6352 s
+Time for seq is 19.1541 s
+Distance is correct: 1 1
+Distance to {500, 500, 500} is 1500
+Average time for seq is 18.9515 s
+Average time for par is 39.6515 s
+par is 0.4780 times faster than seq
+```
+

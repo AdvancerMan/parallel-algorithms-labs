@@ -21,6 +21,21 @@ double measure_time(std::string const& operation_name, std::function<void()> ope
     return spent_time_seconds;
 }
 
+bool check_distances_are_correct(int* distances, size_t n) {
+    size_t vertices_size = n + 1;
+    for (size_t i = 0; i < vertices_size * vertices_size * vertices_size; i++) {
+        size_t x = i % vertices_size;
+        size_t y = i / vertices_size % vertices_size;
+        size_t z = i / vertices_size / vertices_size % vertices_size;
+
+        if (static_cast<size_t>(distances[i]) != x + y + z) {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 int main(int argc, char* argv[]) {
     if (argc != 3) {
         std::cout << "Usage: bfs_benchmark <cube edge length> <measurements count>" << std::endl;
@@ -41,19 +56,20 @@ int main(int argc, char* argv[]) {
     double total_seq_seconds = 0.0;
     double total_par_seconds = 0.0;
     for (size_t i = 0; i < k; i++) {
-        size_t result_distance_par;
+        int* result_distances_par;
         total_par_seconds += measure_time("par", [&]() {
             CubicVertex start(n + 1, {0, 0, 0});
-            result_distance_par = bfs_calculate_distance_par(start, {n, n, n});
+            result_distances_par = bfs_calculate_distances_par(start);
         });
 
-        size_t result_distance_seq;
+        int* result_distances_seq;
         total_seq_seconds += measure_time("seq", [&]() {
             CubicVertex start(n + 1, {0, 0, 0});
-            result_distance_seq = bfs_calculate_distance_seq(start, {n, n, n});
+            result_distances_seq = bfs_calculate_distances_seq(start);
         });
-        
-        std::cout << "Distance is correct: " << (3 * n == result_distance_par) << " " << (3 * n == result_distance_seq) << std::endl;
+
+        std::cout << "Distance is correct: " << check_distances_are_correct(result_distances_par, n) << " " << check_distances_are_correct(result_distances_seq, n) << std::endl;
+        std::cout << "Distance to {" << n << ", " << n << ", " << n << "} is " << result_distances_par[(n + 1) * (n + 1) * (n + 1) - 1] << std::endl;
     }
 
     std::cout.precision(4);
